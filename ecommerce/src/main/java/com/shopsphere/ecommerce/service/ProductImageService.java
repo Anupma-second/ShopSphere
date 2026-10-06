@@ -2,9 +2,10 @@ package com.shopsphere.ecommerce.service;
 
 import com.shopsphere.ecommerce.entity.Product;
 import com.shopsphere.ecommerce.entity.ProductImage;
-import com.shopsphere.ecommerce.exception.ProductNotFoundException;
+import com.shopsphere.ecommerce.entity.User;
+import com.shopsphere.ecommerce.exception.BadRequestException;
+import com.shopsphere.ecommerce.exception.ResourceNotFoundException;
 import com.shopsphere.ecommerce.repository.ProductImageRepository;
-import com.shopsphere.ecommerce.repository.ProductRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -14,27 +15,36 @@ import java.util.Optional;
 public class ProductImageService {
 
     private final ProductImageRepository productImageRepository;
-    private final ProductRepository productRepository;
+    private final ProductService productService;
 
     public ProductImageService(
             ProductImageRepository productImageRepository,
-            ProductRepository productRepository) {
+            ProductService productService) {
 
         this.productImageRepository = productImageRepository;
-        this.productRepository = productRepository;
+        this.productService = productService;
     }
 
-    public ProductImage createImage(ProductImage productImage) {
+    public ProductImage createImage(ProductImage productImage, User user) {
 
-        Long productId = productImage.getProduct().getId();
+        if (productImage.getProduct() == null || productImage.getProduct().getId() == null) {
+            throw new BadRequestException("product.id is required");
+        }
 
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() ->
-                        new ProductNotFoundException(
-                                "Product not found with id: " + productId));
+        String url = productImage.getImageUrl() == null ? "" : productImage.getImageUrl().trim();
 
+        if (!(url.startsWith("https://") || url.startsWith("http://"))) {
+            throw new BadRequestException("Image URL must start with http:// or https://");
+        }
+        if (url.length() > 255) {
+            throw new BadRequestException("Image URL is too long (max 255 characters)");
+        }
+
+        Product product = productService.getManageableProduct(
+                productImage.getProduct().getId(), user);
+
+        productImage.setImageUrl(url);
         productImage.setProduct(product);
-
         return productImageRepository.save(productImage);
     }
 
@@ -46,7 +56,14 @@ public class ProductImageService {
         return productImageRepository.findById(id);
     }
 
-    public void deleteImage(Long id) {
-        productImageRepository.deleteById(id);
+    public void deleteImage(Long id, User user) {
+
+        ProductImage image = productImageRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Product image not found with id: " + id));
+
+        productService.requireCanManage(image.getProduct(), user);
+
+        productImageRepository.delete(image);
     }
 }

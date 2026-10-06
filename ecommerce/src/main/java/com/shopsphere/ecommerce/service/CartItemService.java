@@ -145,7 +145,7 @@ public class CartItemService {
                 product.getPrice(),
                 savedCartItem.getQuantity(),
                 totalPrice
-        );
+        ).withProduct(product);
     }
 
     public List<CartItemResponse> getCartByUserId(Long userId) {
@@ -167,7 +167,7 @@ public class CartItemService {
                             product.getPrice(),
                             cartItem.getQuantity(),
                             totalPrice
-                    );
+                    ).withProduct(product);
                 })
                 .toList();
     }
@@ -211,6 +211,6 @@ public class CartItemService {
                 product.getPrice(),
                 savedCartItem.getQuantity(),
                 totalPrice
-        );
+        ).withProduct(product);
     }
 }

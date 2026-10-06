@@ -31,6 +31,15 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(ex.getStatus()).body(body(ex.getMessage()));
     }
 
+    // 429 + Retry-After header so clients know how long to wait
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<Map<String, String>> handleTooManyRequests(
+            TooManyRequestsException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", String.valueOf(ex.getRetryAfterSeconds()))
+                .body(body(ex.getMessage()));
+    }
+
     // NEW: FK / unique-constraint violations (e.g. deleting a product that
     // already appears in an order)
     @ExceptionHandler(DataIntegrityViolationException.class)

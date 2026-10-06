@@ -4,6 +4,8 @@ public class CheckoutRequest {
 
     private Long addressId;
 
+    private String couponCode;   // optional
+
     public CheckoutRequest() {
     }
 
@@ -17,5 +19,13 @@ public class CheckoutRequest {
 
     public void setAddressId(Long addressId) {
         this.addressId = addressId;
+    }
+
+    public String getCouponCode() {
+        return couponCode;
+    }
+
+    public void setCouponCode(String couponCode) {
+        this.couponCode = couponCode;
     }
 }

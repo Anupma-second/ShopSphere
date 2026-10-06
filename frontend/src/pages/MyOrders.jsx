@@ -1,58 +1,75 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import api from "../api/axios";
+import { getErrorMessage } from "../utils/errors";
+import { formatDate, formatMoney } from "../utils/format";
+import { OrderStatusBadge, PaymentStatusBadge } from "../components/StatusBadge";
+import "../styles/orders.css";
 
 function MyOrders() {
-  const [orders, setOrders] = useState([]);
+  const [orders, setOrders] = useState(null); // null = still loading
   const [error, setError] = useState("");
-
   const navigate = useNavigate();
 
   useEffect(() => {
     api.get("/orders")
-      .then((response) => {
-        setOrders(response.data);
-      })
-      .catch((error) => {
-        setError(
-          error.response?.data?.message ||
-          "Failed to load orders."
-        );
+      .then((response) => setOrders(response.data))
+      .catch((err) => {
+        setError(getErrorMessage(err, "Failed to load orders."));
+        setOrders([]);
       });
   }, []);
 
   return (
-    <div>
+    <div className="order-page">
       <h1>My Orders</h1>
 
-      {error && <p>{error}</p>}
+      {error && <div className="banner banner-bad">{error}</div>}
 
-      {orders.length === 0 ? (
-        <p>You have no orders yet.</p>
-      ) : (
-        orders.map((order) => (
-          <div key={order.id}>
-            <h2>Order #{order.id}</h2>
+      {orders === null && (
+        <>
+          <div className="skeleton" style={{ height: 96 }} />
+          <div className="skeleton" style={{ height: 96 }} />
+        </>
+      )}
 
-            <p>Amount: ₹{order.totalAmount}</p>
-            <p>Status: {order.status}</p>
-            <p>
-              Date:{" "}
-              {order.orderDate
-                ? new Date(order.orderDate).toLocaleString()
-                : "N/A"}
+      {orders && orders.length === 0 && !error && (
+        <div className="state-box">
+          <h2>No orders yet</h2>
+          <p className="muted">When you place an order it will show up here.</p>
+          <p style={{ marginTop: 16 }}>
+            <Link to="/products">Start shopping</Link>
+          </p>
+        </div>
+      )}
+
+      {orders && orders.map((order) => {
+        const names = order.items.map((i) => `${i.productName} × ${i.quantity}`);
+        return (
+          <div className="order-card" key={order.id}>
+            <div className="order-card-top">
+              <span className="order-card-title">Order #{order.id}</span>
+              <span className="muted">Placed {formatDate(order.orderDate)}</span>
+            </div>
+
+            <p className="order-card-items muted">
+              {names.slice(0, 3).join(", ")}
+              {names.length > 3 ? ` and ${names.length - 3} more` : ""}
             </p>
 
-            <button
-              onClick={() => navigate(`/orders/${order.id}`)}
-            >
-              View Details
-            </button>
-
-            <hr />
+            <div className="order-card-bottom">
+              <span className="order-head-badges">
+                <OrderStatusBadge status={order.status} />
+                <PaymentStatusBadge status={order.payment?.status} />
+              </span>
+              <span className="order-card-total">{formatMoney(order.totalAmount)}</span>
+              <button onClick={() => navigate(`/orders/${order.id}`)}>
+                View details
+              </button>
+            </div>
           </div>
-        ))
-      )}
+        );
+      })}
     </div>
   );
 }

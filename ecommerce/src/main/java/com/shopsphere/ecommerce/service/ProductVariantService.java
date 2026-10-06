@@ -2,8 +2,9 @@ package com.shopsphere.ecommerce.service;
 
 import com.shopsphere.ecommerce.entity.Product;
 import com.shopsphere.ecommerce.entity.ProductVariant;
-import com.shopsphere.ecommerce.exception.ProductNotFoundException;
-import com.shopsphere.ecommerce.repository.ProductRepository;
+import com.shopsphere.ecommerce.entity.User;
+import com.shopsphere.ecommerce.exception.BadRequestException;
+import com.shopsphere.ecommerce.exception.ResourceNotFoundException;
 import com.shopsphere.ecommerce.repository.ProductVariantRepository;
 import org.springframework.stereotype.Service;
 
@@ -14,26 +15,19 @@ import java.util.Optional;
 public class ProductVariantService {
 
     private final ProductVariantRepository productVariantRepository;
-    private final ProductRepository productRepository;
+    private final ProductService productService;
 
     public ProductVariantService(
             ProductVariantRepository productVariantRepository,
-            ProductRepository productRepository) {
+            ProductService productService) {
 
         this.productVariantRepository = productVariantRepository;
-        this.productRepository = productRepository;
+        this.productService = productService;
     }
 
-    public ProductVariant createVariant(ProductVariant variant) {
+    public ProductVariant createVariant(ProductVariant variant, User user) {
 
-        Long productId = variant.getProduct().getId();
-
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() ->
-                        new ProductNotFoundException(
-                                "Product not found with id: " + productId));
-
-        variant.setProduct(product);
+        variant.setProduct(manageableProductOf(variant, user));
 
         return productVariantRepository.save(variant);
     }
@@ -47,19 +41,13 @@ public class ProductVariantService {
     }
 
     public ProductVariant updateVariant(
-            Long id, ProductVariant updatedVariant) {
+            Long id, ProductVariant updatedVariant, User user) {
 
-        ProductVariant variant = productVariantRepository.findById(id)
-                .orElseThrow(() ->
-                        new RuntimeException(
-                                "Product variant not found with id: " + id));
+        ProductVariant variant = findVariant(id);
 
-        Long productId = updatedVariant.getProduct().getId();
-
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() ->
-                        new ProductNotFoundException(
-                                "Product not found with id: " + productId));
+        // must own the current product AND the one it is being moved to
+        productService.requireCanManage(variant.getProduct(), user);
+        Product product = manageableProductOf(updatedVariant, user);
 
         variant.setVariantName(updatedVariant.getVariantName());
         variant.setPrice(updatedVariant.getPrice());
@@ -69,7 +57,26 @@ public class ProductVariantService {
         return productVariantRepository.save(variant);
     }
 
-    public void deleteVariant(Long id) {
-        productVariantRepository.deleteById(id);
+    public void deleteVariant(Long id, User user) {
+
+        ProductVariant variant = findVariant(id);
+        productService.requireCanManage(variant.getProduct(), user);
+
+        productVariantRepository.delete(variant);
+    }
+
+    private ProductVariant findVariant(Long id) {
+        return productVariantRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Product variant not found with id: " + id));
+    }
+
+    private Product manageableProductOf(ProductVariant variant, User user) {
+
+        if (variant.getProduct() == null || variant.getProduct().getId() == null) {
+            throw new BadRequestException("product.id is required");
+        }
+
+        return productService.getManageableProduct(variant.getProduct().getId(), user);
     }
 }

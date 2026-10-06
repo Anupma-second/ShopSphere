@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 
 @Entity
 @Table(name = "product_variants")
-public class ProductVariant {
+public class ProductVariant extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

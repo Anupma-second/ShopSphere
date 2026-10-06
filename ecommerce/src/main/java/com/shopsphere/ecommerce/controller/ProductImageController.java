@@ -1,8 +1,10 @@
 package com.shopsphere.ecommerce.controller;
 
 import com.shopsphere.ecommerce.entity.ProductImage;
+import com.shopsphere.ecommerce.entity.User;
 import com.shopsphere.ecommerce.service.ProductImageService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,9 +19,12 @@ public class ProductImageController {
         this.productImageService = productImageService;
     }
 
+    // owner seller or admin
     @PostMapping
-    public ProductImage createImage(@RequestBody ProductImage productImage) {
-        return productImageService.createImage(productImage);
+    public ProductImage createImage(
+            @AuthenticationPrincipal User user,
+            @RequestBody ProductImage productImage) {
+        return productImageService.createImage(productImage, user);
     }
 
     @GetMapping
@@ -35,8 +40,10 @@ public class ProductImageController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteImage(@PathVariable Long id) {
-        productImageService.deleteImage(id);
+    public ResponseEntity<Void> deleteImage(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long id) {
+        productImageService.deleteImage(id, user);
         return ResponseEntity.noContent().build();
     }
 }

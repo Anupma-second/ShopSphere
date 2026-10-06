@@ -42,6 +42,14 @@ public class SecurityConfig {
                         // Public: auth + error page
                         .requestMatchers("/api/auth/**", "/error").permitAll()
 
+                        // Public: API docs (turn off in production with SWAGGER_ENABLED=false)
+                        .requestMatchers("/swagger-ui.html", "/swagger-ui/**",
+                                "/v3/api-docs/**").permitAll()
+
+
+                        // Razorpay -> our server (authenticated by HMAC signature)
+                        .requestMatchers(HttpMethod.POST, "/api/payments/webhook").permitAll()
+
                         // Public: browsing the catalogue (read-only)
                         .requestMatchers(HttpMethod.GET,
                                 "/api/products/**",
@@ -58,12 +66,15 @@ public class SecurityConfig {
                         .requestMatchers("/api/categories/**").hasRole("ADMIN")
 
                         // Product catalogue writes: seller or admin
-                        // (per-seller ownership comes in the seller phase)
+                        // (sellers may only touch their own - checked in ProductService)
                         .requestMatchers(
                                 "/api/products/**",
                                 "/api/product-images/**",
                                 "/api/product-variants/**")
                         .hasAnyRole("SELLER", "ADMIN")
+
+                        // Seller dashboard
+                        .requestMatchers("/api/seller/**").hasRole("SELLER")
 
                         // Everything else needs a valid access token
                         .anyRequest().authenticated()

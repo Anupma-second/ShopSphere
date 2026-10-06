@@ -28,7 +28,8 @@ public class WishlistItemController {
                 item.getId(),
                 item.getProduct().getId(),
                 item.getProduct().getName(),
-                item.getProduct().getPrice());
+                item.getProduct().getPrice())
+                .withProduct(item.getProduct());
     }
 
     @PostMapping

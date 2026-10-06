@@ -6,7 +6,10 @@ import com.shopsphere.ecommerce.dto.LoginRequest;
 import com.shopsphere.ecommerce.dto.RegisterRequest;
 import com.shopsphere.ecommerce.dto.ResetPasswordRequest;
 import com.shopsphere.ecommerce.dto.UserResponse;
+import com.shopsphere.ecommerce.exception.UnauthorizedException;
+import com.shopsphere.ecommerce.security.LoginRateLimiter;
 import com.shopsphere.ecommerce.service.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,9 +18,12 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final LoginRateLimiter loginRateLimiter;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService,
+                          LoginRateLimiter loginRateLimiter) {
         this.authService = authService;
+        this.loginRateLimiter = loginRateLimiter;
     }
 
     @PostMapping("/register")
@@ -26,8 +32,22 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public AuthResponse login(@Valid @RequestBody LoginRequest request) {
-        return authService.login(request);
+    public AuthResponse login(@Valid @RequestBody LoginRequest request,
+                              HttpServletRequest httpRequest) {
+
+        String ip = httpRequest.getRemoteAddr();
+
+        // 429 before even checking the password if there were too many failures
+        loginRateLimiter.check(request.getEmail(), ip);
+
+        try {
+            AuthResponse response = authService.login(request);
+            loginRateLimiter.recordSuccess(request.getEmail(), ip);
+            return response;
+        } catch (UnauthorizedException wrongPassword) {
+            loginRateLimiter.recordFailure(request.getEmail(), ip);
+            throw wrongPassword;
+        }
     }
 
     // body is the raw refresh token string (quotes tolerated)
